@@ -12,10 +12,10 @@ It is released under a BSD style license.
 * Ability to generate docs for private vars, methods, typedefs, classes and enums
 * Templated html file generation
 
-## Installation =
+## Installation
 
 ```
-haxelib git chxdoc git@github.com:ibilon/chxdoc.git
+haxelib git chxdoc https://github.com/ibilon/chxdoc
 haxelib run chxdoc install [optional path]
 ```
 
