@@ -210,7 +210,7 @@ class ClassHandler extends TypeHandler<ClassCtx> {
 					return true;
 			// go to superClass
 			var sc = ctx.scPathParams;
-			if(sc == null)
+			if(sc == null || Filters.isFiltered(sc.path, false))
 				break;
 			ctx = cast ChxDocMain.findType(sc.path);
 		}
