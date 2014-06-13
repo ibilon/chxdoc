@@ -108,7 +108,7 @@ class TypedefHandler extends TypeHandler<TypedefCtx> {
 				var field = createField(context, f.name, false, platforms, "", null);
 				field.returns =  doStringBlock(
 						function() {
-							me.processType(f.t);
+							me.processType(f.type);
 						}
 				);
 				context.fields.push(field);

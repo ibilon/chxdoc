@@ -1,26 +1,23 @@
 /*
- * Copyright (c) 2005-2009, The haXe Project Contributors
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Copyright (C)2005-2012 Haxe Foundation
  *
- *   - Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   - Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE HAXE PROJECT CONTRIBUTORS "AS IS" AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
- * DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 package haxe.rtti;
 import haxe.rtti.CType;
@@ -56,7 +53,7 @@ class XmlParser {
 			case TClassdecl(c):
 				c.fields = sortFields(c.fields);
 				c.statics = sortFields(c.statics);
-			case TEnumdecl(e):
+			case TEnumdecl(_):
 			case TAbstractdecl(_):
 			case TTypedecl(_):
 			}
@@ -177,18 +174,19 @@ class XmlParser {
 		t.types.set(curplatform,t2.type);
 		return true;
 	}
-	
+
 	function mergeAbstracts( a : Abstractdef, a2 : Abstractdef ) {
 		if( curplatform == null )
 			return false;
-		if( a.subs.length != a2.subs.length || a.supers.length != a2.supers.length )
+		if( a.to.length != a2.to.length || a.from.length != a2.from.length )
 			return false;
-		for( i in 0...a.subs.length )
-			if( !TypeApi.typeEq(a.subs[i],a2.subs[i]) )
+		for( i in 0...a.to.length )
+			if( !TypeApi.typeEq(a.to[i].t,a2.to[i].t) )
 				return false;
-		for( i in 0...a.supers.length )
-			if( !TypeApi.typeEq(a.supers[i],a2.supers[i]) )
+		for( i in 0...a.from.length )
+			if( !TypeApi.typeEq(a.from[i].t,a2.from[i].t) )
 				return false;
+		if (a2.impl != null) mergeClasses(a.impl, a2.impl);
 		a.platforms.add(curplatform);
 		return true;
 	}
@@ -234,6 +232,7 @@ class XmlParser {
 					else
 						tinf.doc = inf.doc;
 				}
+				if (tinf.path == "haxe._Int64.NativeInt64") continue;
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {
 					case TClassdecl(c):
@@ -324,6 +323,25 @@ class XmlParser {
 		}
 	}
 
+	function xmeta( x : Fast ) : MetaData {
+		var ml = [];
+		for( m in x.nodes.m ) {
+			var pl = [];
+			for( p in m.nodes.e )
+				pl.push(p.innerHTML);
+			ml.push({ name : m.att.n, params : pl });
+		}
+		return ml;
+	}
+	
+	function xoverloads( x : Fast ) : List<ClassField> {
+		var l = new List();
+		for ( m in x.elements ) {
+			l.add(xclassfield(m));
+		}
+		return l;
+	}
+
 	function xpath( x : Fast ) : PathParams {
 		var path = mkPath(x.att.path);
 		var params = new List();
@@ -375,21 +393,23 @@ class XmlParser {
 		};
 	}
 
-	function xclassfield( x : Fast ) : ClassField {
+	function xclassfield( x : Fast, ?defPublic ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;
 		var meta = [];
+		var overloads = null;
 		for( c in e )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
 			case "meta": meta = xmeta(c);
+			case "overloads": overloads = xoverloads(c);
 			default: xerror(c);
 			}
 		return {
 			name : x.name,
 			type : t,
-			isPublic : x.x.exists("public"),
+			isPublic : x.x.exists("public") || defPublic,
 			isOverride : x.x.exists("override"),
 			line : if( x.has.line ) Std.parseInt(x.att.line) else null,
 			doc : doc,
@@ -398,6 +418,7 @@ class XmlParser {
 			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
 			platforms : defplat(),
 			meta : meta,
+			overloads: overloads
 		};
 	}
 
@@ -429,6 +450,7 @@ class XmlParser {
 	function xenumfield( x : Fast ) : EnumField {
 		var args = null;
 		var xdoc = x.x.elementsNamed("haxe_doc").next();
+		var meta = if( x.hasNode.meta ) xmeta(x.node.meta) else [];
 		if( x.has.a ) {
 			var names = x.att.a.split(":");
 			var elts = x.elements;
@@ -450,25 +472,14 @@ class XmlParser {
 			name : x.name,
 			args : args,
 			doc : if( xdoc == null ) null else new Fast(xdoc).innerData,
+			meta : meta,
 			platforms : defplat(),
 		};
 	}
 
-	function xmeta( x : Fast ) : MetaData {
-		var ml = [];
-		for( m in x.nodes.m ) {
-			var pl = [];
-			for( p in m.nodes.e )
-				pl.push(p.innerHTML);
-			ml.push({ name : m.att.n, params : pl });
-		}
-		return ml;
-	}
-
 	function xabstract( x : Fast ) : Abstractdef {
-		var doc = null;
-		var meta = [], subs = [], supers = [];
-			
+		var doc = null, impl = null, athis = null;
+		var meta = [], to = [], from = [];
 		for( c in x.elements )
 			switch( c.name ) {
 			case "haxe_doc":
@@ -477,14 +488,17 @@ class XmlParser {
 				meta = xmeta(c);
 			case "to":
 				for( t in c.elements )
-					subs.push(xtype(t));
+					to.push({t: xtype(new Fast(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 			case "from":
 				for( t in c.elements )
-					supers.push(xtype(t));
+					from.push({t: xtype(new Fast(t.x.firstElement())), field: t.has.field ? t.att.field : null});
+			case "impl":
+				impl = xclass(c.node.resolve("class"));
+			case "this":
+				athis = xtype(new Fast(c.x.firstElement()));
 			default:
 				xerror(c);
 			}
-		
 		return {
 			file : if(x.has.file) x.att.file else null,
 			path : mkPath(x.att.path),
@@ -494,10 +508,13 @@ class XmlParser {
 			params : mkTypeParams(x.att.params),
 			platforms : defplat(),
 			meta : meta,
-			subs : subs,
-			supers : supers
+			athis : athis,
+			to : to,
+			from : from,
+			impl: impl
 		};
 	}
+
 
 	function xtypedef( x : Fast ) : Typedef {
 		var doc = null;
@@ -510,7 +527,7 @@ class XmlParser {
 				meta = xmeta(c);
 			else
 				t = xtype(c);
-		var types = new Map();
+		var types = new haxe.ds.StringMap();
 		if( curplatform != null )
 			types.set(curplatform,t);
 		return {
@@ -537,10 +554,13 @@ class XmlParser {
 			CClass(mkPath(x.att.path),xtypeparams(x));
 		case "t":
 			CTypedef(mkPath(x.att.path),xtypeparams(x));
+		case "x":
+			CAbstract(mkPath(x.att.path),xtypeparams(x));
 		case "f":
 			var args = new List();
 			var aname = x.att.a.split(":");
 			var eargs = aname.iterator();
+			var evalues = x.has.v ? x.att.v.split(":").iterator() : null;
 			for( e in x.elements ) {
 				var opt = false;
 				var a = eargs.next();
@@ -550,10 +570,12 @@ class XmlParser {
 					opt = true;
 					a = a.substr(1);
 				}
+				var v = evalues == null ? null : evalues.next();
 				args.add({
 					name : a,
 					opt : opt,
 					t : xtype(e),
+					value : v
 				});
 			}
 			var ret = args.last();
@@ -561,11 +583,11 @@ class XmlParser {
 			CFunction(args,ret.t);
 		case "a":
 			var fields = new List();
-			for( f in x.elements )
-				fields.add({
-					name : f.name,
-					t : xtype(new Fast(f.x.firstElement())),
-				});
+			for( f in x.elements ) {
+				var f = xclassfield(f,true);
+				f.platforms = new List(); // platforms selection are on the type itself, not on fields
+				fields.add(f);
+			}
 			CAnonymous(fields);
 		case "d":
 			var t = null;
@@ -573,8 +595,6 @@ class XmlParser {
 			if( tx != null )
 				t = xtype(new Fast(tx));
 			CDynamic(t);
-		case "x":
-			CAbstract(mkPath(x.att.path),xtypeparams(x));
 		default:
 			xerror(x);
 		}

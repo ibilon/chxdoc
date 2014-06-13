@@ -114,7 +114,7 @@ class TypeHandler<T> {
 			var me = this;
 			display(fields,function(f) {
 				me.write(f.name+" : ");
-				me.processType(f.t);
+				me.processType(f.type);
 			},", ");
 			write("}");
 		case CDynamic(t):
