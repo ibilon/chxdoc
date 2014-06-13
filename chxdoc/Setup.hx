@@ -232,6 +232,7 @@ class Setup {
 						case "deny" : p = DENY;
 						default : throw "<filter> policy '"+f.att.policy+"' is invalid";
 					}
+					setFilterPolicy(p);
 					setListVal("filters",[createFilterEntry(f.att.path, p)],false);
 				}
 			} else {
