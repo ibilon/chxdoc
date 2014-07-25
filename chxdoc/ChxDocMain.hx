@@ -665,6 +665,13 @@ class ChxDocMain {
 		#end
 
 		var args : Array<String> = Sys.args().copy();
+		
+		var p = args.pop();
+		if (sys.FileSystem.isDirectory(p))
+		{
+			Sys.setCwd(p);
+		}
+		
 		var nextArg = function(errMsg:String):String {
 			if(args.length == 0)
 				throw Std.string(errMsg);

@@ -14,17 +14,13 @@ It is released under a BSD style license.
 
 ## Installation
 
-```
-haxelib git chxdoc https://github.com/ibilon/chxdoc
-haxelib run chxdoc install [optional path]
-```
+`haxelib install chxdoc`
 
-If the optional path parameter is omitted, chxdoc will be installed to the current directory.
+Or using the github version
+
+`haxelib git chxdoc https://github.com/ibilon/chxdoc`
 
 CHXDOC uses a modified version of temploc, the template compiler system by Nicolas Cannasse.
-
-Install the chxdoc.exe file to somewhere on your executable path. The templates directory
-can be placed anywhere, but chxdoc will read templates out of haxelib if it is installed there.
 
 ## Usage
 
@@ -38,8 +34,8 @@ parameters. This will generate the file that chxdoc requires.
 The most common usage of chxdoc would be something like:
 
 ```
-chxdoc -o docs_dev --developer=true -f myproject.xml
-chxdoc -o docs --templatesDir=/chxdoc/templates --template=default -f myproject.xml
+haxelib run chxdoc -o docs_dev --developer=true -f myproject.xml
+haxelib run chxdoc -o docs --templatesDir=/chxdoc/templates --template=default -f myproject.xml
 ```
 
 Two versions of the documentation would be created, one with all the private data
@@ -52,7 +48,7 @@ the xml files are generated, you could generate flash9, neko and js targets
 using a command similar to
 
 ```
-chxdoc -o docs --tmpDir=_chxdoctmp --templateDir=../chxdoc/templates/default --installTemplate=true --developer=true flash9.xml,flash9,flash neko.xml,neko js.xml,js
+haxelib run chxdoc -o docs --tmpDir=_chxdoctmp --templateDir=../chxdoc/templates/default --installTemplate=true --developer=true flash9.xml,flash9,flash neko.xml,neko js.xml,js
 ```
 
 ## Configuration
